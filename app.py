@@ -51,7 +51,7 @@ def parti_sil(p_no):
 st.set_page_config(page_title="MÜH401 Karar Destek Sistemi", layout="wide", page_icon="⚙️")
 st.title("♻️ Mekanik Kompost Tamburu - Karar Destek Sistemi (DSS)")
 
-# Kural 1: Geçici Veri Uyarısı (Kalıcı ve Belirgin)
+# Kural 1: Geçici Veri Uyarısı
 st.warning("**DİKKAT:** Sistemdeki mevcut kapasite, atık ve maliyet parametreleri (kg, TL vb.) şu an için tahmini (dummy) verilerdir. İlgili iş paketlerinden (IE-1 ve ME-1) gelecek kesin saha verileri beklenmektedir ve sisteme entegre edilecektir.")
 
 # --- SOL MENÜ: YENİ VERİ GİRİŞİ ---
@@ -110,9 +110,7 @@ tab_wbs, tab_ie1, tab_ie2, tab_ie3, tab_me1, tab_me2, tab_me3 = tabs
 # -----------------------------------------------------------
 with tab_wbs:
     st.header("Kurumsal Ekip Dağılımı ve İş Kırılım Yapısı (WBS)")
-    st.markdown("""
-    Kampüs atık yönetimi projesi kapsamında görev alan disiplinler arası (Endüstri ve Makine) mühendislik ekibinin güncel organizasyon şeması aşağıda belirtilmiştir.
-    """)
+    st.markdown("Kampüs atık yönetimi projesi kapsamında görev alan disiplinler arası (Endüstri ve Makine) mühendislik ekibinin güncel organizasyon şeması aşağıda belirtilmiştir.")
     
     # Kural 2: Kesin Ekip Dağılımı
     st.markdown("""
@@ -152,7 +150,7 @@ with tab_ie1:
 # -----------------------------------------------------------
 with tab_ie2:
     st.header("IE-2: Kesikli Üretim (Batch) Çizelgelemesi ve Kütle Dengesi")
-    st.markdown("Üretim operasyonlarının Gantt mimarisi üzerinden anlık takibi, personel iş emri atanması ve süreç sonu kütle dengesi (Mass Balance) analizleri.")
+    st.markdown("Üretim operasyonlarının Gantt mimarisi üzerinden anlık takibi, kütle dengesi (Mass Balance) ve vardiyalı personel iş emri yönetimi.")
     
     st.latex(r"M_{hasat} = (M_{azot} + M_{karbon}) \times \eta_{verim}")
 
@@ -163,13 +161,39 @@ with tab_ie2:
         fig.update_yaxes(autorange="reversed")
         st.plotly_chart(fig, use_container_width=True)
 
+        st.subheader("Saha Operasyonları ve İşçi Yönergeleri")
         cols = st.columns(3)
         for index, row in df.iterrows():
             with cols[index % 3]:
                 with st.container(border=True):
-                    st.markdown(f"**Üretim Partisi #{row['Gosterim_No']}** | Faz: {row['gecen_gun']}/21")
+                    # Detaylı Tarih ve Kütle Verileri
+                    baslangic_str = row['baslangic_tarihi'].strftime('%d.%m.%Y')
+                    bitis_str = row['bitis_tarihi'].strftime('%d.%m.%Y')
+                    
+                    st.markdown(f"### Parti #{row['Gosterim_No']} | Faz: {row['gecen_gun']}/21")
                     st.progress(row['gecen_gun'] / DONGU_SURESI_GUN)
-                    if st.button("🗑️ İptal/Sil", key=f"sil_{row['parti_no']}"):
+                    
+                    st.markdown(f"**📅 Süreç:** {baslangic_str} ➡️ {bitis_str}")
+                    st.markdown(f"**🍏 Azot Kaynağı (Yemek):** {row['atik_miktari_kg']} kg")
+                    st.markdown(f"**🪵 Karbon Kaynağı (Talaş):** {row['karbon_miktari_kg']} kg")
+                    
+                    toplam_girdi = row['atik_miktari_kg'] + row['karbon_miktari_kg']
+                    beklenen_cikti = toplam_girdi * KOMPOST_VERIM_ORANI
+                    st.markdown(f"🌱 **Beklenen Hasat (Kütle Dengesi):** {beklenen_cikti:.1f} kg")
+                    
+                    st.markdown("---")
+                    st.markdown("👷 **İşçi Operasyon Yönergesi:**")
+                    
+                    if row['gecen_gun'] >= DONGU_SURESI_GUN:
+                        st.error(f"🛑 SÜREÇ TAMAMLANDI. Tamburu bugün ({bitis_str}) boşaltın. Çıkan kompostu hasat alanına sevk edin.")
+                    elif row['gecen_gun'] == 0:
+                        st.info("🆕 Parti bugün yüklendi. Kapağı kilitleyip günün ilk havalandırma (döndürme) işlemlerini başlatın.")
+                        st.markdown("- [ ] **10:00** (Kolu 3 tur çevir)\n- [ ] **14:00** (Kolu 3 tur çevir)\n- [ ] **18:00** (Kolu 3 tur çevir)")
+                    else:
+                        st.warning("⏳ Çürüme Fazı. Oksijen sirkülasyonu için belirlenen saatlerde manuel döndürme rutinine uyun.")
+                        st.markdown("- [ ] **10:00** (Kolu 3 tur çevir)\n- [ ] **14:00** (Kolu 3 tur çevir)\n- [ ] **18:00** (Kolu 3 tur çevir)")
+                    
+                    if st.button("🗑️ Kaydı Sil", key=f"sil_{row['parti_no']}"):
                         parti_sil(row['parti_no'])
                         st.rerun()
     else:
